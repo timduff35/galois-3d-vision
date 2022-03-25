@@ -33,52 +33,19 @@ A dominant, rational map from (P^2)^20  - -> Grass(P^3, P^8)
 *-
 
 restart
-needsPackage "SLPexpressions"
-ONE = inputGate 1
-det2 = X -> (
-    assert(numrows X == 2 and numcols X == 2);
-    X_(0,0)*X_(1,1) - X_(1,0)*X_(0,1)
-    )
-adj2 = X -> (
-    assert(numrows X == 2 and numcols X == 2);
-    matrix{{X_(1,1),-X_(0,1)},{-X_(1,0),X_(0,0)}}
-    )
-inv2 = X -> ONE/(det2 X) * adj2 X
-inv = M -> (
-    n := numrows M;
-    assert(n == numcols M);
-    if (n==1) then matrix{{ONE/M_(0,0)}}
-    else if (n==2) then inv2 M
-    else ( -- use Schur complement
-	k := floor(n/2);
-	A := M_{0..k-1}^{0..k-1};
-	B := M_{k..n-1}^{0..k-1};
-	C := M_{0..k-1}^{k..n-1};
-	D := M_{k..n-1}^{k..n-1};
-	Dinv := inv D;
-	DinvC := Dinv * C;
-	BDinv := B * Dinv;
-	M'over'D := A - BDinv * C;
-	M'over'Dinv := inv M'over'D;
-	(
-	    (M'over'Dinv         | -M'over'Dinv * BDinv) ||
-	    (-DinvC * M'over'Dinv | Dinv + DinvC*M'over'Dinv*BDinv)
-	    )
-	)
-    )
-xs = for i from 1 to 5 list gateMatrix{{declareVariable x_(i,1),declareVariable x_(i,2),ONE}}
-ys = for i from 1 to 5 list gateMatrix{{declareVariable y_(i,1),declareVariable y_(i,2),ONE}}
+needs "common.m2"
+--needsPackage "MonodromySolver"
+xs = for i from 1 to 5 list gateMatrix{{declareVariable x_(i,1),declareVariable x_(i,2),inputGate 1}}
+ys = for i from 1 to 5 list gateMatrix{{declareVariable y_(i,1),declareVariable y_(i,2),inputGate 1}}
 L = fold(apply(xs,ys,(x,y) -> gateMatrix{flatten entries(transpose x*y)}),(a,b)->a||b)
-(numcols L, numrows L)
 (L1, L2) = (L_{0..4}, L_{5..8})
-stiefelL = (inv L1) * L2;
+stiefelL = (inverse L1) * L2;
 gateOutput = transpose gateMatrix{flatten entries(stiefelL)};
 gateInput = gateMatrix fold(apply(xs, x -> x_{0,1}), (a,b) -> a|b)| fold(apply(ys, y -> y_{0,1}), (a,b) -> a|b),
-numrows gateInput, numcols gateInput
-numrows gateOutput, numcols gateOutput
-needsPackage "MonodromySolver"
 stiefelGateSystem = gateSystem(gateInput, gateOutput)
-J = evaluateJacobian(stiefelGateSystem, point random(QQ^20,QQ^1))
+xy0 = random(QQ^20,QQ^1) -- try replacing with your favorite point correspondences (x1,x2,..,x5,y1,..,y5)
+printWidth = 10000
+J = evaluateJacobian(stiefelGateSystem, point xy0)
 rank J
 
 -*
