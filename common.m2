@@ -1,53 +1,15 @@
--- IMPORTS 
 needsPackage "MonodromySolver"
-
--- FUNCTIONS
 
 size GateMatrix := M -> (numrows M, numcols M)
 size Matrix := M -> (numrows M, numcols M)
 
--*
--- evaluate a gateMatrix G at a matrix x
--- don't use this a lot...
-evaluate (GateMatrix, Matrix) := (G, x) -> (
-    M := mutableMatrix(FF,numrows G,numcols G);
-    E' := makeEvaluator(G,matrix{cameraVars|dataParams});
-    evaluate(E',mutableMatrix(x),M);
-    matrix M
-    )
-*-
-
---random diagonal matrix
-randDiag = n -> diagonalMatrix for i from 1 to n list random CC
-
-dehomogenize = method(Options=>{})
-dehomogenize (Matrix, ZZ) := o -> (v, n) -> (
-    --assumes column vector
-    (1/v_(n, 0))*v^(toList splice(0..n-1,n+1..numrows v-1))
-    )
-dehomogenize Matrix := o -> v -> dehomogenize(v, numrows v -1)
-
-summary = L -> (
-    n := #L;
-    H := sort L;
-    Q1 := (1/2) * (H#(floor((n-1)/3))+H#(ceiling((n-1)/3)));
-    med := (1/2) * (H#(floor((n-1)/2))+H#(ceiling((n-1)/2)));
-    Q3 := (1/2) * (H#(floor(2*(n-1)/3))+H#(ceiling(2*(n-1)/3)));
-    mean := (sum L)/n;
-    var := sum(L/(x-> (x - mean)^2))/(n-1);
-    << "Min: " << toString(min L) << endl;
-    << "1Q: " << toString(Q1) << endl;
-    << "Med: " << toString(med) << endl;
-    << "Avg: " << toString(sub(mean,RR)) << endl;
-    << "3Q: " << toString(Q3) << endl;
-    << "Max: " << toString(max L) << endl;
-    << "Std Dev: " << toString(sqrt(var)) << endl;
-    )    
+-- sum of squares of entries of column-matrix (possibly consisting of indeterminates), which defines the l2-norm when working over the real numbers
+normSquared = x -> (assert(numcols x == 1); (transpose x * x)_(0,0))
 
 -- random element in the kernel of M
 randKernel = method(Options=>{Tolerance=>1e-4})
 randKernel (Matrix, InexactFieldFamily) := o -> (M, FF) -> (
-    K := numericalKernel(M, o.Tolerance);
+    K := numericalKernel(M, Tolerance => o.Tolerance);
     K*random(FF^(numcols K), FF^1)
     )
 randKernel Matrix := o -> M -> randKernel(M, CC)
@@ -55,12 +17,12 @@ randKernel Matrix := o -> M -> randKernel(M, CC)
 reshapeCol = p -> if (numrows p == 1) then transpose p else p
 reshapeRow = p -> if (numcols p == 1) then transpose p else p
 
--- RANDOMIZATION FOR PARAMETER POINT p
--- assumes random CC has unit modulus!
+-- Target system randomization for a fabricated point-line problem (briefly described in Duff PhD thesis, Sec 3.2.3)
 gammify = method()
 gammify Point := p -> gammify reshapeCol matrix p
 gammify Matrix := p -> (
     gammas := for i from 1 to m*#indepLines list random CC;
+    assert(areEqual(abs first gammas,1));-- assumes random CC has unit modulus!
     indDiag := flatten(gammas/(g->{g,g,g}));
     -- abstract to arbitrary diagram, number of cameras
     depWInd := depLines/(l->first select(1,last D,i->member(l,i)));
@@ -164,9 +126,6 @@ inverse GateMatrix := M -> (
 	)
     )
 
--- jacobian of GateMatrix wrt. a list of inputGates
---jacobian (GateMatrix, List) := (F,inGates) -> fold(apply(inGates,g->diff(g,F)),(a,b)->a|b)
-
 -- get rotation matrix from cayley parameters
 cay2R = method(Options=>{Normalized=>false})
 cay2R (Thing,Thing,Thing) := o -> (X,Y,Z) -> (
@@ -190,16 +149,6 @@ R2Cay Matrix := o -> R -> (
     S := (R-id_(CC^3))*(R+id_(CC^3))^-1;
     (S_(2,1), S_(0,2), S_(1,0))
     )
-
--*/// TEST
-restart
-needs "common.m2"
-(x, y, z) = (random RR, random RR, random RR)
-R = cay2R(x, y, z)
-(x',y',z') = R2Cay R
-R = cay2R(x', y', z')
-R2Cay R
-///*-
 
 -- get rotation matrix from quaternion parameters
 Q2R = method(Options=>{Normalized=>false, FF=>CC})
@@ -229,23 +178,8 @@ R2Q Matrix := o -> R -> (
     x := 1/(4*w) * c;
     y := 1/(4*w) * b;
     z := 1/(4*w) * a;
---    << w^2+x^2+y^2+z^2 << endl;
     (w, x, y, z)
     )
-
--*/// TEST
-R=CC[W]
-netList solveSystem {W^4-W^2+1/16}
-clean T
-T=QQ[a..d]
-R=Q2R gens T
-S = (R-id_(((QQ)^3)))*adjugate(R+id_((QQ)^3));
-S
-((first x)/(first L))*L
-1/sqrt(sum(x/(y->y^2)))*x
-L
-///*-
-
 
 -- cross product of col vectors -- takes Matrice or GateMatrix pair
 crossProduct = (y,q) -> matrix{{y_(1,0)*q_(2,0)-y_(2,0)*q_(1,0)},{y_(2,0)*q_(0,0)-y_(0,0)*q_(2,0)},{y_(0,0)*q_(1,0)-y_(1,0)*q_(0,0)}}
@@ -393,13 +327,6 @@ complexQR = M -> (
     (matrix Q,matrix R)
     )
 
-leverageScores = M -> (
-    Q = first complexQR M;
-    rsort apply(numrows Q,i->(norm(2,Q^{i}),i))
-    )
-
-
-
 -- indexes subsystem giving Jacobian rank
 rowSelector = method(Options=>{Threshold=>1e-4})
 rowSelector Matrix := o -> J0 -> (
@@ -418,12 +345,6 @@ rowSelector Matrix := o -> J0 -> (
 	);
     if k < n then  << "WARNING: Jacobian has rank" << toString k << endl;
     toList inds
-    )
-
-leverageScoreRowSelector = J0 -> (
-    sortedRows := (leverageScores J0)/last;
-    r := rowSelector J0^(sortedRows);
-    sort(r/(i->sortedRows#i))
     )
 
 log10 = x -> log(x)/log(10)
@@ -460,7 +381,6 @@ randomOn = n -> diagonalMatrix(toList((n-1):1_RR)|{(-1)^(random 2)}) * fold(reve
 randomCameraNormalized = () -> (
     R := randomOn 3;
     t := matrix{{random CC},{random CC},{random CC}};
---    t := transpose matrix{sphere(3,1)};
     tnorm := (1 / t_(2,0))* t;
     (R|tnorm)
     )
@@ -507,102 +427,6 @@ rankCheck (Matrix, Matrix) := o -> (x, p) -> (
 
 cpMatrix = t -> matrix{{0,-t_(2,0),t_(1,0)},{t_(2,0),0,-t_(0,0)},{-t_(1,0),t_(0,0),0}}
 
-essential = (R,t) -> R * cpMatrix t
-
-pCompose = method()
-pCompose (MutableHashTable, MutableHashTable) := (H1, H2) -> (
-    new MutableHashTable from apply(keys H2,k-> if H1#?(H2#k) then k=> H1#(H2#k))
-    )
-///TEST
-H1 = new MutableHashTable from {0=>1, 1=>2, 2=>0}
-H2 = new MutableHashTable from {0=>2, 1=>1, 2=>0}
-H1H2=pCompose(H1,H2)
-H2H1=pCompose(H2,H1)
-assert(H1H2#1 == 2)
-assert(H2H1#1 == 0)
-///
-
-inverse MutableHashTable := H -> new MutableHashTable from apply(keys H, values H, (k,v) -> v=>k)
-
--*
-G=V.Graph
-unvisited = set toList G.Vertices
-unvisited = unvisited - {V}
-spanningEdges = set{}
-cycleMakingEdges = set{}
-while #unvisited > 0 do (
-    e := first keys unvisited;
-    
-    
-apply(verts, v -> 
-*-
-
-writePermutations = method(Options=>{})
-writePermutations (List, String) := o -> (L, filename) -> (
-    goodPerms := select(L,p->all(p,pi->instance(pi,ZZ)));
-    perms := goodPerms/(P->P/(i->i+1)); -- increment letters by 1 for GAP
-    file := openOut (currentFileDirectory | filename);
-    for i from 0 to #perms-1 do file << "p" << i << ":= PermList(" << toString(new Array from perms#i) << ");" << endl;
-    file << "G:=Group(";
-    for i from 0 to #perms-2 do file << "p" << i << ", ";
-    file << "p" << #perms-1 << ");";
-    close file;
-    )
--- todo: preselect a non-bottleneck vertex
-writePermutations (HomotopyNode, ZZ, String) := o -> (V, rc, filename) -> (
-    if rc != length V.PartialSols then (f:=openOut filename; f << "failed"; close f) else (
-        idPerm := new MutableHashTable from for i from 0 to rc-1 list i => i;
-        -- step 0: extract subgraph of complete correspondences
-        G := V.Graph;
-        -- EG = edges with complete correspondence
-        EG := reverse toList select(G.Edges, e -> (
-                ve1 := delete(,unique values e.Correspondence12); 
-                ve2 := delete(,values e.Correspondence21); 
-                rc == length ve1 and rc == length ve2 
-                )
-            );
-        -- VG = connected component of V in subgraph of EG
-        VG := set(apply(EG, e -> e.Node1) | apply(EG, e -> e.Node2));
-        neighbor = (v, e) -> if v === e.Node1 then e.Node2 else if v === e.Node2 then e.Node1 else error "edge not incident at vertex";
-        -- STEP 1: BUILD SPANNING TREE on (VG, EG)
-        (uncoveredV, uncoveredE) := (VG-set{V},set EG);
-        T := new MutableHashTable from {};
-        while (#uncoveredV > 0) do (
-            -- select an uncovered vertex adjacent to a covered vertex
-            vList := select(1, keys uncoveredV, v -> any(v.Edges, e -> (u := neighbor(v, e); not member(u, uncoveredV) and member(e, uncoveredE))));
-            if # vList == 1 then (
-                v := first vList;
-                -- select an edge w/ complete correspondence
-                eList := select(1, reverse v.Edges, e -> (u := neighbor(v, e); not member(u, uncoveredV) and member(e, uncoveredE)));
-                if #eList == 1 then (
-                    T#v = first eList; 
-                    uncoveredE = uncoveredE - set{e};
-                    );
-                );
-            uncoveredV = uncoveredV - set{v};
-            );
-        -- STEP 2: extract permutations from cycle basis
-        perms := values \ apply(keys uncoveredE, e -> (
-                (u, v) := (e.Node1, e.Node2);
-                uPath := idPerm;
-                while T#?u do (
-                    ei = T#u;
-                    uPath = if u === ei.Node1 then pCompose(ei.Correspondence12, uPath) else pCompose(ei.Correspondence21, uPath);
-                    u = neighbor(u, T#u);
-                    );
-                vPath := idPerm;
-                while T#?v do (
-                    ei = T#v;
-                    vPath = if v === ei.Node1 then pCompose(ei.Correspondence12, vPath) else pCompose(ei.Correspondence21, vPath);
-                    v = neighbor(v, T#v);
-                    );
-                pCompose(vPath, pCompose(e.Correspondence12, inverse uPath))
-                )
-            );
-        writePermutations(perms,filename);
-        );
-    )
-
 -- "join" of two GateSystems (take all functions from both)
 GateSystem || GateSystem := (P, Q) -> (
     allVars := unique( (flatten entries vars P) | (flatten entries vars Q) );
@@ -614,27 +438,12 @@ GateSystem || GateSystem := (P, Q) -> (
 	)
     )
 
--- sum of two GateSystems
-GateSystem + GateSystem := (P, Q) -> (
-    if (numFunctions P =!= numFunctions Q) then error "can only add GateSystems of the same shape";
-    H := P || Q;
-    gateSystem(parameters H, vars H, gateMatrix P + gateMatrix Q)
-    )
-
 -- take some functions from the GateSystem
 GateSystem ^ List := (P, inds) -> gateSystem(parameters P, vars P, (gateMatrix P)^inds)
-
-evaluateJacobian (Point, Point, GateSystem) := (y0, c0, F) -> (
-    J := diff(vars F, gateMatrix F);
-    (M, N) := (numrows J, numcols J);
-    JGS := gateSystem(parameters F, vars F, transpose matrix{flatten entries J});
-    matrix(transpose evaluate(JGS, y0, c0),M,N)
-    )
 
 -- helpers for rowSelector
 orthoProjectQR = (M,L) -> (
     (Q,R)=complexQR L;
---    Q := (SVD L)#1;
     Q*conjugate transpose Q *M
     )
 
