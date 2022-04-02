@@ -107,6 +107,7 @@ Irot = promote(Irot, FRNG)
 apply(numerator \ (Psi2 Irot)_*, e -> e % (ideal G))
 
 -- Now we verify that the composition of Psi1 and Psi2 preserves the homography matrix H
+load "common.m2"
 Psi1a = for i from 1 to 4 list -a_i * (normSquared tt)/(normSquared(b_i*promote(ys#(i-1),FRNG))-normSquared(a_i*promote(xs#(i-1),FRNG)))
 Psi1b = for i from 1 to 4 list  b_i * (normSquared tt)/(normSquared(b_i*promote(ys#(i-1),FRNG))-normSquared(a_i*promote(xs#(i-1),FRNG)))
 Psi1R = ((2/normSquared(tt)) * tt * transpose tt - id_(FRNG^3)) * R
@@ -117,9 +118,19 @@ H12 = Psi1 Psi2 H;
 U = unique(denominator \ (flatten entries H))
 U12 = unique(denominator \ (flatten entries H12))
 assert(#U == 1 and #U12 == 1)
--- Timings recorded for running the next line were on the order of 2min
 elapsedTime HminusH12Polynomial = ((first U)*matrix apply(entries H12, r -> numerator \ r) -  (first U12)*matrix apply(entries H, r -> numerator \ r));
 assert(HminusH12Polynomial % (ideal G) == 0)
+
+-- It is far easier to check that Psi2(H) = -H
+H2 = Psi2 H
+assert(H + H2 == 0)
+
+-- Finally, we verify dimension and degree of the ideal in Equation (29)
+R = FF[s,S_(1,2),S_(1,3),S_(2,1)..S_(3,3)]
+Smatrix = matrix for i from 1 to 3 list for j from 1 to 3 list if (i==1 and j==1) then 1 else S_(i,j)
+Icorr = ideal apply(cpMatrix \ ys, xs, (yx, x) -> yx * Smatrix * x )
+I = Icorr + ideal(det(transpose Smatrix * Smatrix - s*id_(R^3)))
+(dim I, degree I)
 
 -*
 Section 4.3
