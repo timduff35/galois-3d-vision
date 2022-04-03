@@ -58,6 +58,7 @@ monodromyGroup(V.Graph, FileName=>"gal-5pt-40.gp")
 -*
 Example 2.4
 *-
+
 restart
 needsPackage "MonodromySolver"
 unknownMatrix = gateMatrix{{declareVariable x}}
@@ -70,6 +71,7 @@ monodromyGroup(G, "msOptions" => {NumberOfNodes => 5}, FileName => "example-21.g
 -*
 Examples 2.8 and 2.14
 *-
+
 restart
 FF = ZZ/nextPrime 2022
 RNG = FF[a_0..a_3,b_0..b_3]
@@ -108,6 +110,7 @@ dim I, degree I
 -*
 Section 3.1
 *-
+
 -- Galois group of equations (16) is the full wreath product...
 restart
 needsPackage "MonodromySolver"
@@ -135,21 +138,28 @@ I = ideal apply(tuples, t -> (
     	x_i^2 + x_j^2 - c_(i,j)*x_i*x_j - d_(i,j)
 	)
     )
-elapsedTime G = groebnerBasis(I, Strategy => "F4");
+G = groebnerBasis(I, Strategy => "F4");
 needsPackage "FGLM"
 -- The next line was timed at ~ 115s on a 2021 Macbook pro w/ 8G RAM
 elapsedTime lexG = fglm(forceGB G, FF[gens R,MonomialOrder => Lex]);
 netList flatten entries gens lexG
 -- Extract monomials and coefficients from the minimal polynomial:
 (m,c) = coefficients (gens lexG)_(0,0)
--- Since the constant term of the minimal polynomial is a square, its discriminant is a square:
+-- Observe that the constant term of the minimal polynomial is a square:
 factor c_(numrows c -1, 0)
+-* 
+It follows, by considering factors of a generic equation x^8 + * x^6 + ... 
+(as in the line below), that the discriminant of this minimal polynomial is a square. 
+Thus its Galois group must be contained in A8.
+*-
+(S = QQ[c_0..c_4,x]; f = x^8 + sum(4, i -> c_i * x^(2*i)); factor discriminant(f, x))
 
 -*
 Section 3.2: Investigating symmetries of absolute pose problems with mixed point & line features.
 We use the constraints proposed in the paper:
   "Pose Estimation using Both Points and Lines for Geo-Localization" (Ramalingam, Bouaziz, Sturm, ICRA 2011.)
 *-
+
 -- 2 points and 1 line (Equations 18 in our paper, Equations 4 and 5 in RBS '11)
 restart
 FF = ZZ/nextPrime 2022
@@ -212,7 +222,6 @@ A dominant, rational map from (P^2)^20  - -> Grass(P^3, P^8) appearing in Propos
 
 restart
 needs "common.m2"
---needsPackage "MonodromySolver"
 xs = for i from 1 to 5 list gateMatrix{{declareVariable x_(i,1),declareVariable x_(i,2),inputGate 1}}
 ys = for i from 1 to 5 list gateMatrix{{declareVariable y_(i,1),declareVariable y_(i,2),inputGate 1}}
 L = fold(apply(xs,ys,(x,y) -> gateMatrix{flatten entries(transpose x*y)}),(a,b)->a||b)
@@ -234,6 +243,7 @@ Section 4.2
 First, we verify the degree of the problem using Groebner bases over a finite field.
 Here, the variable "SAT" enforces the constraint that depths are nonzero.
 *-
+
 restart
 FF = ZZ/nextPrime 2022
 RNG = FF[r_(1,1)..r_(3,3), a_1..a_4, b_1..b_4, t_1..t_3, SAT]
@@ -250,16 +260,17 @@ worldPoints = fold(for i from 1 to 4 list (a_i*sub(xs#(i-1),RNG))||matrix{{1}}, 
 Iplanar = ideal det worldPoints
 Isat = ideal((SAT * product for i from 1 to 4 list a_i*b_i) - 1)
 I = Icorr + Iplanar + Irot + Isat + ideal(t_3-1)-- We may verify the degree by working in the affine chart on depths/translation space where t3 = 1.
--- next line timed at ~.25s on MBP
 elapsedTime G = groebnerBasis(I, Strategy => "F4");
 inI = ideal leadTerm G;
 dim inI, degree inI
+
 -*
  We now verify our formula for the deck transformation Psi2 as follows:
    * express the plane normal n as a function of input data and unknown quantities
    * check that application of Psi2 preserves homogeneous equations defining I in the function field of X.
    (Here, we switch to homogeneous coordinates on depths/translation space.)
 *-
+
 nd = lift((gens ker sub(transpose worldPoints, RNG/Iplanar))_{0}, RNG)
 assert((transpose nd * worldPoints) % Iplanar == 0)
 FRNG = frac(RNG)
@@ -313,6 +324,7 @@ I = Icorr + ideal(det(transpose Smatrix * Smatrix - s*id_(R^3)))
 -*
 Section 4.3
 *-
+
 restart
 FF = ZZ/nextPrime 2022
 RNG = FF[H_(1,1,1)..H_(2,3,3)]
