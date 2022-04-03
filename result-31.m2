@@ -1,4 +1,8 @@
+-*
+To run this script, start a Macaulay2 session in the directory containing it and run lines 48--56 (immediately following the "end" statement.)
+*-
 needs "common.m2"
+-- options for path-tracking and monodromy
 msOptions={Verbose=>true,NumberOfNodes=>3}
 
 noLines = (nlines == 0)
@@ -47,6 +51,7 @@ needsPackage "MonodromySolver"
 for i from 0 to 3 do (
     npoints = i;
     nlines = 3-npoints;
+    setRandomSeed 2022;
     load "result-31.m2";
     monodromyGroup(Gsq, Param0, {X0}, "msOptions"=>msOptions, FileName=>"./groups-absolute-pose/npts-"|toString(npoints)|"nlns"|toString(nlines)|".gp");
     )

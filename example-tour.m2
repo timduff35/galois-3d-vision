@@ -20,16 +20,59 @@ Example 2.12
 
 
 -*
-Section 3.1
+Section 3.1: Investigating the Galois group associated to "Grunert's equations" for the P3P absolute pose problem.
 *-
+-- Galois group of equations (16) is the full wreath product...
+restart
+needsPackage "MonodromySolver"
+unknownMatrix = gateMatrix{toList vars(x_1,x_2,x_3)}
+parameterMatrix = gateMatrix{toList vars(A,B,C,D,E,F,G,H,I,J,K,L)}
+sparseEquationMatrix = transpose gateMatrix{{A*x_1^2+B*x_2^2+C*x_1*x_2+D,E*x_1^2+F*x_3^2+G*x_1*x_3+H,I*x_2^2+J*x_3^2+K*x_2*x_3+L}}
+sparseG = gateSystem(parameterMatrix, unknownMatrix, sparseEquationMatrix)
+setRandomSeed 2022
+monodromyGroup(sparseG, "msOptions" => {NumberOfNodes => 5}, FileName => "sparsified-P3P.gp")
+-- ... but the Galois group of P3P (with the same monomial support) is the alternating wreath product!
+P3PEquationMatrix = transpose gateMatrix{{A*(x_1^2+x_2^2)+C*x_1*x_2+D,E*(x_1^2+x_3^2)+G*x_1*x_3+H,I*(x_2^2+x_3^2)+K*x_2*x_3+L}}
+P3PG = gateSystem(parameterMatrix, unknownMatrix, P3PEquationMatrix)
+setRandomSeed 2022
+monodromyGroup(P3PG, "msOptions" => {NumberOfNodes => 5}, FileName => "P3P.gp")
 
 -*
-Section 3.2
+Section 3.2: Investigating symmetries of absolute pose problems with mixed point & line features.
+We use the constraints proposed in the paper:
+  "Pose Estimation using Both Points and Lines for Geo-Localization" (Ramalingam, Bouaziz, Sturm, ICRA 2011.)
 *-
+-- 2 points and 1 line (Equations 18 in our paper, Equations 4 and 5 in RBS '11)
+restart
+FF = ZZ/nextPrime 2022
+RNG = FF[b_1,b_2,a_1,a_2,X_2,X_3,X_4,Y_3,Y_4,Z_4,R_(1,1), R_(2,1), R_(3,1), R_(2,2), R_(2,3), T_1,T_2,T_3]
+XX = transpose matrix{{R_(1,1), R_(2,1), R_(3,1), R_(2,2), R_(2,3), T_1,T_2,T_3}}
+B = matrix{{0},{-b_1},{0},{-b_2},{0},{0}}
+A = matrix{
+    {       0,       0,       0,   0,   0, -b_1, a_1,   0},
+    {       0,       0,       0,   0,   0,    0,  -1, b_1},
+    {-b_2*X_2, a_2*X_2,       0,   0,   0, -b_2, a_2,   0},
+    {       0,    -X_2, b_2*X_2,   0,   0,    0,  -1, b_2},
+    {       0,     X_3,       0, Y_3,   0,    0,   1,   0},
+    {       0,     X_4,       0, Y_4, Z_4,    0,   1,   0}
+    }
+I = ideal(A*XX-B, R_(1,1)^2 + R_(2,1)^2 + R_(3,1)^2 - 1, R_(2,1)^2 + R_(2,2)^2 + R_(2,3)^2 - 1)
+-- the deck transformation (R,t) -> (-R, t-2e3) is easily verifieed
+eq1 = A*XX-B
+deckXX = -XX - matrix apply(8, i -> {if i < 7 then 0 else 2})
+eq2 = A*deckXX-B
+assert(eq1 + eq2 == 0)
+specializedRing = FF[flatten entries XX]
+specializationMap = map(specializedRing, RNG, apply(10, i -> random FF) | (flatten entries sub(XX, specializedRing)))
+specializedI = specializationMap I
+dim specializedI, degree specializedI
+
+-- 1 point and 2 lines
+
 
 -*
 Section 4.1
-A dominant, rational map from (P^2)^20  - -> Grass(P^3, P^8)
+A dominant, rational map from (P^2)^20  - -> Grass(P^3, P^8) appearing in Proposition 4.1.
 *-
 
 restart
@@ -54,7 +97,7 @@ Section 4.2
 
 -*
 First, we verify the degree of the problem using Groebner bases over a finite field.
-Here, he variable "SAT" enforces the constraint that depths are nonzero.
+Here, the variable "SAT" enforces the constraint that depths are nonzero.
 *-
 restart
 FF = ZZ/nextPrime 2022
@@ -181,4 +224,4 @@ inG = ideal leadTerm G;
 dim inG, degree inG
 -- The last constraint we need is det H1 != 0: in fact, we should saturate by the square of det H1 to obtain Result 4.3
 Isat = (ideal G):(det H1)^2;
-dim Isat, degree Isat
+dim Isat, degree Isat -- Degree 64 matches the degree computed in rotation/translations, justifying our claim that the associated branched covers are birationally equivalent.

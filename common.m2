@@ -476,7 +476,7 @@ rowSelector (Point, Point, ZZ, GateSystem) := o -> (y0, c0, n, F) -> (
     while (r < n and numIters < numBlocks) do (
     	diffIndices = for j from numIters*blockSize to min((numIters+1)*blockSize,numFunctions F)-1 list j;
 	if o.Verbose then << "processing rows " << first diffIndices << " thru " << last diffIndices << endl;
-    	newRows := evaluateJacobian(y0,c0,F^diffIndices);
+    	newRows := evaluateJacobian(F^diffIndices, y0, c0);
     	for j from 0 to numrows newRows - 1 do (
 	    tmp := transpose perp(transpose newRows^{j}, transpose L);
 	    if not areEqual(0, norm tmp) then (
