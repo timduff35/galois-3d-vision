@@ -5,19 +5,52 @@ Example 1.1
 -*
 Example 2.4
 *-
+restart
+needsPackage "MonodromySolver"
+unknownMatrix = gateMatrix{{declareVariable x}}
+parameterMatrix = gateMatrix{{declareVariable p}}
+equationMatrix = gateMatrix{{x^3-p}}
+G = gateSystem(parameterMatrix, unknownMatrix, equationMatrix) -- of class "GateSystem"
+setRandomSeed 2022
+monodromyGroup(G, "msOptions" => {NumberOfNodes => 5}, FileName => "example-21.gp")
 
 -*
-Examples 2.7 and 2.13
+Examples 2.8 and 2.14
 *-
+restart
+FF = ZZ/nextPrime 2022
+RNG = FF[a_0..a_3,b_0..b_3]
+E = matrix{ -- coordinates of the map X -> E
+    {
+        -- first row
+        a_0*b_0 - a_1*b_1 - a_2*b_2 + a_3*b_3, 
+        a_0*b_1 + a_1*b_0 + a_2*b_3 + a_3*b_2,
+        a_0*b_2 + a_2*b_0 - a_1*b_3 - a_3*b_1
+        },
+    {
+        -- second row
+        a_0*b_1 + a_1*b_0 - a_2*b_3 - a_3*b_2, 
+        -a_0*b_0 + a_1*b_1 - a_2*b_2 + a_3*b_3,
+        a_1*b_2 + a_2*b_1 + a_0*b_3 + a_3*b_0
+        },
+    {
+        -- third row
+        a_0*b_2 + a_2*b_0 + a_1*b_3 + a_3*b_1, 
+        a_1*b_2 + a_2*b_1 - a_0*b_3 - a_3*b_0,
+        -a_0*b_0 - a_1*b_1 + a_2*b_2 + a_3*b_3
+        }
 
--*
-Example 2.11
-*-
-
--*
-Example 2.12
-*-
-
+}
+IX = ideal sum for i from 0 to 3 list a_i * b_i
+-- Check that the matrix E satisfies Demazure's trace constraints:
+(E * transpose E * E - (1/2) * trace(E * transpose E) * E) % IX
+-- Check that swapping a & b has the same effect as the twisted pair:
+phi = map(RNG, RNG, {b_0,b_1,b_2,b_3,a_0,a_1,a_2,a_3})
+E-phi E
+-- Verify (in the affine chart a_0 = b_0 = 1 on P^3 x P^3) that we get 20 = deg(X/Z) solutions for (a,b)
+I = IX + ideal apply(5, i -> random(FF^1,FF^3) * E * random(FF^3, FF^1));
+elapsedTime I = saturate(I, ideal(a_0..a_3)*ideal(b_0..b_3)) + ideal(a_0-1,b_0-1);
+dim I, degree I
 
 -*
 Section 3.1
@@ -31,7 +64,8 @@ sparseEquationMatrix = transpose gateMatrix{{A*x_1^2+B*x_2^2+C*x_1*x_2+D,E*x_1^2
 sparseG = gateSystem(parameterMatrix, unknownMatrix, sparseEquationMatrix)
 setRandomSeed 2022
 monodromyGroup(sparseG, "msOptions" => {NumberOfNodes => 5}, FileName => "sparsified-P3P.gp")
--- ... but the Galois group of P3P (with the same monomial support) is the alternating wreath product!
+
+-- ...but the Galois group of P3P (with the same monomial support) is that wreath product's intersection with A8!
 P3PEquationMatrix = transpose gateMatrix{{A*(x_1^2+x_2^2)+C*x_1*x_2+D,E*(x_1^2+x_3^2)+G*x_1*x_3+H,I*(x_2^2+x_3^2)+K*x_2*x_3+L}}
 P3PG = gateSystem(parameterMatrix, unknownMatrix, P3PEquationMatrix)
 setRandomSeed 2022
