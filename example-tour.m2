@@ -20,7 +20,7 @@ Example 2.12
 
 
 -*
-Section 3.1: Investigating the Galois group associated to "Grunert's equations" for the P3P absolute pose problem.
+Section 3.1
 *-
 -- Galois group of equations (16) is the full wreath product...
 restart
@@ -36,6 +36,27 @@ P3PEquationMatrix = transpose gateMatrix{{A*(x_1^2+x_2^2)+C*x_1*x_2+D,E*(x_1^2+x
 P3PG = gateSystem(parameterMatrix, unknownMatrix, P3PEquationMatrix)
 setRandomSeed 2022
 monodromyGroup(P3PG, "msOptions" => {NumberOfNodes => 5}, FileName => "P3P.gp")
+
+-- Computing the discriminant of "Grunert's equations" for the P3P absolute pose problem.
+-- Remark: dij below represent squared distances: however, reparametrizing in terms of distances does not change the Galois group.
+restart
+tuples = {(1,2), (1,3), (2,3)}
+FF = frac(QQ[flatten \\ tuples/(t-> {d_t, c_t})])
+R = FF[x_1,x_2,x_3]
+I = ideal apply(tuples, t -> (
+	(i, j) := (first t, last t);
+    	x_i^2 + x_j^2 - c_(i,j)*x_i*x_j - d_(i,j)
+	)
+    )
+elapsedTime G = groebnerBasis(I, Strategy => "F4");
+needsPackage "FGLM"
+-- The next line was timed at ~ 115s on a 2021 Macbook pro w/ 8G RAM
+elapsedTime lexG = fglm(forceGB G, FF[gens R,MonomialOrder => Lex]);
+netList flatten entries gens lexG
+-- Extract monomials and coefficients from the minimal polynomial:
+(m,c) = coefficients (gens lexG)_(0,0)
+-- Since the constant term of the minimal polynomial is a square, its discriminant is a square:
+factor c_(numrows c -1, 0)
 
 -*
 Section 3.2: Investigating symmetries of absolute pose problems with mixed point & line features.
@@ -57,18 +78,45 @@ A = matrix{
     {       0,     X_4,       0, Y_4, Z_4,    0,   1,   0}
     }
 I = ideal(A*XX-B, R_(1,1)^2 + R_(2,1)^2 + R_(3,1)^2 - 1, R_(2,1)^2 + R_(2,2)^2 + R_(2,3)^2 - 1)
--- the deck transformation (R,t) -> (-R, t-2e3) is easily verifieed
+-- The deck transformation (R,t) -> (-R, t-2e3) is easily verified
 eq1 = A*XX-B
-deckXX = -XX - matrix apply(8, i -> {if i < 7 then 0 else 2})
+deckXX = -XX - matrix apply(numrows XX, i -> {if i < numrows XX -1 then 0 else 2})
 eq2 = A*deckXX-B
 assert(eq1 + eq2 == 0)
+-- Verify the degree of the problem on random input
 specializedRing = FF[flatten entries XX]
-specializationMap = map(specializedRing, RNG, apply(10, i -> random FF) | (flatten entries sub(XX, specializedRing)))
+specializationMap = map(specializedRing, RNG, apply(numgens RNG - numrows XX, i -> random FF) | (flatten entries sub(XX, specializedRing)))
 specializedI = specializationMap I
 dim specializedI, degree specializedI
 
--- 1 point and 2 lines
-
+-- 1 point and 2 lines (Equations 18 in our paper, Equations 7 and 8 in RBS '11.)
+restart
+FF = ZZ/nextPrime 2022
+RNG = FF[b_1,b_2,b_4,a_1,a_2,a_4,X_1..X_4,Y_1..Y_4,Z_1..Z_4,R_(1,1),R_(1,2),R_(1,3),R_(2,1),R_(2,2),R_(2,3),T_1,T_2,T_3]
+XX = transpose matrix{{R_(1,1),R_(1,2),R_(1,3),R_(2,1),R_(2,2),R_(2,3),T_1,T_2,T_3}}
+B = matrix{{0},{-b_1},{0},{0},{0},{0}}
+A = transpose matrix{
+    {   0,   0,   0,   0, -b_4*X_3, -b_4*X_4},
+    {   0,   0,   0,   0, -b_4*Y_3, -b_4*Y_4},
+    {   0,   0,   0,   0, -b_4*Z_3, -b_4*Z_4},
+    {   0,   0, X_1, X_2,  a_4*X_3,  a_4*X_4},
+    {   0,   0, Y_1, Y_2,  a_4*Y_3,  a_4*Y_4},
+    {   0,   0, Z_1, Z_2,  a_4*Z_3,  a_4*Z_4},
+    {-b_1,   0,   0,   0,     -b_4,     -b_4},
+    { a_1,  -1,   1,   1,      a_4,      a_4},
+    {   0, b_1,   0,   0,        0,        0}
+    }
+I = ideal(A*XX-B, R_(1,1)^2 + R_(1,2)^2 + R_(1,3)^2 - 1, R_(2,1)^2 + R_(2,2)^2 + R_(2,3)^2 - 1, R_(1,1)*R_(2,1) + R_(1,2) * R_(2,2) + R_(1,3) * R_(2,3))
+-- The deck transformation (R,t) -> (-R, t-2e3) is easily verified
+eq1 = A*XX-B
+deckXX = -XX - matrix apply(numrows XX, i -> {if i < numrows XX -1 then 0 else 2})
+eq2 = A*deckXX-B
+assert(eq1 + eq2 == 0)
+-- Verify the degree of the problem on random input:
+specializedRing = FF[flatten entries XX]
+specializationMap = map(specializedRing, RNG, apply(numgens RNG - numrows XX, i -> random FF) | (flatten entries sub(XX, specializedRing)))
+specializedI = specializationMap I
+dim specializedI, degree specializedI
 
 -*
 Section 4.1
