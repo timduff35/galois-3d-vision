@@ -1,4 +1,20 @@
 -*
+Each example in this file is meant to be run line-by-line.
+Except where indicated, each line runs on the order of 1s (timed on a 2021 MacBook pro, w/ 8G RAM  and a 3.2 GHz M1 processor.)
+It should also be possible to run many examples using the Macaulay2 web interface: https://www.unimelb-macaulay2.cloud.edu.au/#home
+
+Contents:
+            Example 1.1: The five-point problem and its Galois/monodromy groups
+            Example 2.4: A cyclic three-fold branched cover
+  Examples 2.8 and 2.14: An alternate branched cover of the essential variety
+            Section 3.1: Grunert's P3P equations
+            Section 3.2: Absolute pose problems with mixed point & line features.
+	    Section 4.1: A dominant, rational map from (P^2)^20  - -> Grass(P^3, P^8) 
+	    Section 4.2: Planar calibrated homography
+	    Section 4.3: Four special points in three views
+*-
+
+-*
 Example 1.1: The five-point problem and its Galois/monodromy groups
 *-
 restart
@@ -56,7 +72,7 @@ G40 = gateSystem(parameters GSquare, vars GSquare, gateMatrix GSquare^{0..20} ||
 monodromyGroup(V.Graph, FileName=>"gal-5pt-40.gp")
 
 -*
-Example 2.4
+Example 2.4: A cyclic three-fold branched cover
 *-
 
 restart
@@ -69,7 +85,7 @@ setRandomSeed 2022
 monodromyGroup(G, "msOptions" => {NumberOfNodes => 5}, FileName => "example-21.gp")
 
 -*
-Examples 2.8 and 2.14
+Examples 2.8 and 2.14: An alternate branched cover of the essential variety
 *-
 
 restart
@@ -108,7 +124,7 @@ elapsedTime I = saturate(I, ideal(a_0..a_3)*ideal(b_0..b_3)) + ideal(a_0-1,b_0-1
 dim I, degree I
 
 -*
-Section 3.1
+Section 3.1: Grunert's P3P equations
 *-
 
 -- Galois group of equations (16) is the full wreath product...
@@ -121,7 +137,7 @@ sparseG = gateSystem(parameterMatrix, unknownMatrix, sparseEquationMatrix)
 setRandomSeed 2022
 monodromyGroup(sparseG, "msOptions" => {NumberOfNodes => 5}, FileName => "sparsified-P3P.gp")
 
--- ...but the Galois group of P3P (with the same monomial support) is that wreath product's intersection with A8!
+-- ...but the Galois group of P3P is that wreath product's intersection with A8!
 P3PEquationMatrix = transpose gateMatrix{{A*(x_1^2+x_2^2)+C*x_1*x_2+D,E*(x_1^2+x_3^2)+G*x_1*x_3+H,I*(x_2^2+x_3^2)+K*x_2*x_3+L}}
 P3PG = gateSystem(parameterMatrix, unknownMatrix, P3PEquationMatrix)
 setRandomSeed 2022
@@ -155,7 +171,7 @@ Thus its Galois group must be contained in A8.
 (S = QQ[c_0..c_4,x]; f = x^8 + sum(4, i -> c_i * x^(2*i)); factor discriminant(f, x))
 
 -*
-Section 3.2: Investigating symmetries of absolute pose problems with mixed point & line features.
+Section 3.2: Absolute pose problems with mixed point & line features.
 We use the constraints proposed in the paper:
   "Pose Estimation using Both Points and Lines for Geo-Localization" (Ramalingam, Bouaziz, Sturm, ICRA 2011.)
 *-
@@ -216,8 +232,8 @@ specializedI = specializationMap I
 dim specializedI, degree specializedI
 
 -*
-Section 4.1
-A dominant, rational map from (P^2)^20  - -> Grass(P^3, P^8) appearing in Proposition 4.1.
+Section 4.1: A dominant, rational map from (P^2)^20  - -> Grass(P^3, P^8) 
+This appearins in Proposition 4.1.
 *-
 
 restart
@@ -236,7 +252,7 @@ J = evaluateJacobian(stiefelGateSystem, point xy0)
 assert(rank J == 20)
 
 -*
-Section 4.2
+Section 4.2: Planar calibrated homography
 *-
 
 -*
@@ -322,7 +338,7 @@ I = Icorr + ideal(det(transpose Smatrix * Smatrix - s*id_(R^3)))
 (dim I, degree I)
 
 -*
-Section 4.3
+Section 4.3: Four special points in three views
 *-
 
 restart
