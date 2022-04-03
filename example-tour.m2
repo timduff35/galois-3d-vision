@@ -1,6 +1,59 @@
 -*
-Example 1.1
+Example 1.1: The five-point problem and its Galois/monodromy groups
 *-
+restart
+needsPackage "MonodromySolver"
+printWidth = 2022
+setRandomSeed 2022
+
+-- To sample a seed point (x0, z0) on X, simply fabricate some scene and cameras:
+worldPoints = random(CC^3,CC^5)
+xDepths = worldPoints^{2} 
+xPoints = worldPoints * inverse diagonalMatrix xDepths
+translation = sub(random(RR^3,RR^1), CC) -- convenient for normalization ||t||=1
+-- create a random rotation using Cayley's parametrization
+rotation = ( A:= random(CC^3,CC^3); S := A-transpose A; (id_(CC^3)-S) * inverse(id_(CC^3)+S)) 
+worldPointsSecondFrame = rotation*worldPoints + matrix{toList(5:translation)}
+yDepths = worldPointsSecondFrame^{2} 
+yPoints = worldPointsSecondFrame * inverse diagonalMatrix yDepths
+-- Work in an affine chart on P^12 of the form e_0 * a_1 = e_1
+randomChart = (c0 := random(CC^1,CC^1); c0|(-c0*transpose (xDepths_{0})))
+x0 = point(matrix{flatten entries rotation} | transpose translation | xDepths | yDepths)
+z0 = point(matrix{(flatten entries xPoints^{0,1}) | (flatten entries yPoints^{0,1}) | flatten entries randomChart})
+
+-- Set up polynomial system using gates
+needs "common.m2"
+one = inputGate 1
+zer0 = inputGate 0
+parameterMatrix = gateMatrix{toList vars(x_(1,1)..x_(2,5),y_(1,1)..y_(2,5),e_0..e_1)}
+unknownMatrix = gateMatrix{toList vars(r_(1,1)..r_(3,3),t_1..t_3,a_1..a_5,b_1..b_5)}
+R = matrix for i from 1 to 3 list for j from 1 to 3 list r_(i,j)
+t = matrix for i from 1 to 3 list {t_i}
+aDiag = matrix for i from 1 to 5 list for j from 1 to 5 list if i==j then a_i else zer0
+bDiag = matrix for i from 1 to 5 list for j from 1 to 5 list if i==j then b_i else zer0
+xInputs = matrix for i from 1 to 3 list for j from 1 to 5 list if i==3 then one else x_(i,j)
+yInputs = matrix for i from 1 to 3 list for j from 1 to 5 list if i==3 then one else y_(i,j)
+equationMatrix = transpose gateMatrix{
+    (flatten entries(R * transpose R - gateMatrix apply(3,i->apply(3,j-> if i==j then one else zer0)))) | -- O(3) constraints
+    (flatten entries(yInputs * bDiag - (R * xInputs * aDiag + (t|t|t|t|t)))) | -- point correspondence constraints
+    {e_0*a_1+e_1, det3 R - one} -- chart & SO(3) constraints    
+    }
+GS = gateSystem(parameterMatrix, unknownMatrix, equationMatrix)
+
+-- check residuals, well-constrainedness, and obtain square subsystem
+assert areEqual(0, norm evaluate(GS, z0, x0))
+GSquare = squareDown(z0, x0, numVariables GS, GS)
+assert(numVariables GS == numericalRank evaluateJacobian(GSquare, z0, x0))
+
+-- Galois/monodromy group for formulation with 20 solutions
+monodromyGroup(GSquare, z0, {x0}, "msOptions" => {Verbose=>true, NumberOfNodes=>5}, FileName=>"gal-5pt-20.gp")
+-- Galois/monodromy group for formulation with 40 solutions (see Result 4.2)
+t0 = (matrix x0)_{9..11}
+t0Norm = sqrt (t0 * transpose t0)_(0,0)
+x40 = point((matrix x0)_{0..8} | (1/t0Norm) * (matrix x0)_{9..21})
+G40 = gateSystem(parameters GSquare, vars GSquare, gateMatrix GSquare^{0..20} || gateMatrix{{(transpose t * t)_(0,0) - one}})
+(V, npaths) = monodromySolve(G40, z0, {x40}, Verbose=>true, NumberOfNodes=>5)
+monodromyGroup(V.Graph, FileName=>"gal-5pt-40.gp")
 
 -*
 Example 2.4
