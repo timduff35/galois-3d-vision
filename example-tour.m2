@@ -135,4 +135,50 @@ I = Icorr + ideal(det(transpose Smatrix * Smatrix - s*id_(R^3)))
 -*
 Section 4.3
 *-
+restart
+FF = ZZ/nextPrime 2022
+RNG = FF[H_(1,1,1)..H_(2,3,3)]
+H1 = transpose genericMatrix(RNG,3,3)
+H2 = transpose genericMatrix(RNG,H_(2,1,1),3,3)
+W1 = transpose H1 * H1 - id_(RNG^3)
+W2 = transpose H2 * H2 - id_(RNG^3)
+-- I31 = <equations (31)>. 
+I31 = ideal(det W1, det W2, det(W1+W2), det(W1-W2));
+-- We may verify that the non-reduced affine scheme Spec(R/I31) has the expected degree 6^4=1296 using Groebner bases:
+IGenericLinear = ideal apply(14,i->random(1,RNG)-1)
+G = groebnerBasis(I31 + IGenericLinear, Strategy=>"F4");
+inG = ideal leadTerm G;
+dim inG, degree inG
+-- Enforcing additional constraints in Equation (32) removes non-reduced solutions, verifying deg(H2) = 336.
+Iresultant = (
+    RNG12 = FF[gens RNG,n1,n2];
+    (W1, W2) = (sub(W1, RNG12), sub(W2, RNG12));
+    ideal apply({
+	resultant(W1_(2,2) * n1^2 - 2*W1_(0,2) * n1 + W1_(0,0), W2_(2,2) * n1^2 - 2*W2_(0,2) * n1 + W2_(0,0), n1),
+	resultant(W1_(2,2) * n2^2 - 2*W1_(1,2) * n2 + W1_(1,1), W2_(2,2) * n2^2 - 2*W2_(1,2) * n2 + W2_(1,1), n2)
+	}, r -> sub(r, RNG))
+    );
+G = groebnerBasis(I31 + IGenericLinear + Iresultant, Strategy=>"F4");
+inG = ideal leadTerm G;
+dim inG, degree inG
 
+-- Point correspondence constraints, however, are not generic linear equations:
+load "common.m2"
+xs = (xs := for i from 1 to 3 list random(FF^3, FF^1); xs = xs | {xs#0 + (random FF) * xs#1})
+ys = (ys := for i from 1 to 3 list random(FF^3, FF^1); ys = ys | {ys#0 + (random FF) * ys#1})
+zs = (zs := for i from 1 to 3 list random(FF^3, FF^1); zs = zs | {zs#0 + (random FF) * zs#1})
+Icor = ideal(
+    apply(cpMatrix \ ys, xs, (yx, x) -> yx * H1 * x ) | 
+    apply(cpMatrix \ zs, xs, (zx, x) -> zx * H2 * x )
+    )
+-- if we only enforce constraints in Eq 31, the minimal problem has 320 "solutions"
+G = groebnerBasis(I31 + Icor, Strategy=>"F4");
+inG = ideal leadTerm G;
+dim inG, degree inG
+-- if we only enforce constraints in Eqs 31 and 32, the minimal problem has 320 "solutions"
+G = groebnerBasis(I31 + Iresultant + Icor, Strategy=>"F4");
+inG = ideal leadTerm G;
+dim inG, degree inG
+-- The last constraint we need is det H1 != 0: in fact, we should saturate by the square of det H1 to obtain Result 4.3
+Isat = (ideal G):(det H1)^2;
+dim Isat, degree Isat
